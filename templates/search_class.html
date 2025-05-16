@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Поиск занятия</title>
+    <link rel="stylesheet" type="text/css" href="/static/styles.css">
+</head>
+<body>
+    <h1>Поиск занятия</h1>
+    <form method="post">
+        <label for="group_name">Группа:</label>
+        <input type="text" id="group_name" name="group_name"><br>
+        <label for="teacher_name">Преподаватель:</label>
+        <input type="text" id="teacher_name" name="teacher_name"><br>
+        <label for="classroom">Аудитория:</label>
+        <input type="text" id="classroom" name="classroom"><br>
+        <label for="date">Дата:</label>
+        <input type="date" id="date" name="date"><br>
+        <label for="time">Время:</label>
+        <input type="time" id="time" name="time"><br>
+        <button type="submit">Поиск</button>
+    </form>
+    <p>{{ message }}</p>
+    {% if class_info %}
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Группа</th>
+            <th>Преподаватель</th>
+            <th>Аудитория</th>
+            <th>Дата</th>
+            <th>Время</th>
+        </tr>
+        {% for class in class_info %}
+        <tr>
+            <td>{{ class.id }}</td>
+            <td>{{ class.group_name }}</td>
+            <td>{{ class.teacher_name }}</td>
+            <td>{{ class.classroom }}</td>
+            <td>{{ class.date }}</td>
+            <td>{{ class.time }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+    {% endif %}
+    <a href="/">Вернуться на главную</a>
+</body>
+</html>
