@@ -134,3 +134,14 @@ async def search_class(request: Request, group_name: str = Form(None), teacher_n
 async def delete_class(request: Request, class_id: int = Form(...)):
     schedule_manager.delete_class(class_id)
     return RedirectResponse("/view_schedule", status_code=303)
+
+@app.get("/statistics", response_class=HTMLResponse)
+async def show_statistics(request: Request):
+    classes = schedule_manager.get_schedule()
+    stats = {
+        "total_classes": len(classes),
+        "unique_teachers": len(set(cls["teacher_name"] for cls in classes)),
+        "unique_groups": len(set(cls["group_name"] for cls in classes)),
+        "unique_classrooms": len(set(cls["classroom"] for cls in classes)),
+    }
+    return templates.TemplateResponse("statistics.html", {"request": request, "stats": stats})
