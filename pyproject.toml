@@ -1,0 +1,17 @@
+[project]
+name = "university-schedule"
+version = "0.1.0"
+description = ""
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "basedpyright>=1.29.2",
+    "faker>=37.3.0",
+    "fastapi>=0.115.12",
+    "jinja2>=3.1.6",
+    "pyodbc>=5.2.0",
+    "python-multipart>=0.0.20",
+    "ruff>=0.11.11",
+    "sortedcontainers>=2.4.0",
+    "uvicorn>=0.34.2",
+]
