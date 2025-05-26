@@ -5,21 +5,30 @@
     <link rel="stylesheet" type="text/css" href="/static/styles.css">
 </head>
 <body>
-    <h1>Добавить занятие</h1>
-    <form method="post">
-        <label for="group_name">Группа:</label>
-        <input type="text" id="group_name" name="group_name" required><br>
-        <label for="teacher_name">Преподаватель:</label>
-        <input type="text" id="teacher_name" name="teacher_name" required><br>
-        <label for="classroom">Аудитория:</label>
-        <input type="text" id="classroom" name="classroom" required><br>
-        <label for="date">Дата:</label>
-        <input type="date" id="date" name="date" required><br>
-        <label for="time">Время:</label>
-        <input type="time" id="time" name="time" required><br>
-        <button type="submit">Добавить</button>
-    </form>
-    <p>{{ message }}</p>
+    {% if user and user.role == "admin" %}
+        <p>Вы вошли как: <strong>{{ user.name }}</strong> ({{ user.role }})</p>
+        <form method="post" action="/logout">
+            <button type="submit">Выйти</button>
+        </form>
+        <h1>Добавить занятие</h1>
+        <form method="post">
+            <label for="group_name">Группа:</label>
+            <input type="text" id="group_name" name="group_name" required><br>
+            <label for="teacher_name">Преподаватель:</label>
+            <input type="text" id="teacher_name" name="teacher_name" required><br>
+            <label for="classroom">Аудитория:</label>
+            <input type="text" id="classroom" name="classroom" required><br>
+            <label for="date">Дата:</label>
+            <input type="date" id="date" name="date" required><br>
+            <label for="time">Время:</label>
+            <input type="time" id="time" name="time" required><br>
+            <button type="submit">Добавить</button>
+        </form>
+        <p>{{ message }}</p>
+    {% else %}
+        <a href="/login">Войти</a> | <a href="/register">Регистрация</a>
+    {% endif %}
+    <hr>
     <a href="/">Вернуться на главную</a>
 </body>
 </html>

@@ -1,13 +1,204 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import (
+    FastAPI,
+    Request,
+    Form,
+    HTTPException,
+    Depends,
+    Cookie,
+    status,
+)
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from faker import Faker
+from pydantic import BaseModel
+from passlib.context import CryptContext
+from typing import Literal
+import json
+import time
+import base64
+import hmac
+import hashlib
 import random
+from faker import Faker
+from datetime import datetime, timedelta
+import jwt
+
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+USERS_FILE = "users.json"
+SECRET_KEY = "mysecret"
+ALGORITHM = "HS256"
+
+
+class UserRegister(BaseModel):
+    name: str
+    group: str
+    login: str
+    password: str
+    role: Literal["student", "teacher", "admin"]
+
+
+class UserLogin(BaseModel):
+    login: str
+    password: str
+
+
+def read_users():
+    try:
+        with open(USERS_FILE, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+
+
+def write_users(users):
+    with open(USERS_FILE, "w") as f:
+        json.dump(users, f, indent=2)
+
+
+def encode_jwt(payload):
+    header = (
+        base64.urlsafe_b64encode(
+            json.dumps({"alg": "HS256", "typ": "JWT"}).encode()
+        )
+        .decode()
+        .rstrip("=")
+    )
+    payload_encoded = (
+        base64.urlsafe_b64encode(json.dumps(payload).encode())
+        .decode()
+        .rstrip("=")
+    )
+    signature = hmac.new(
+        SECRET_KEY.encode(),
+        f"{header}.{payload_encoded}".encode(),
+        hashlib.sha256,
+    ).digest()
+    signature_encoded = (
+        base64.urlsafe_b64encode(signature).decode().rstrip("=")
+    )
+    return f"{header}.{payload_encoded}.{signature_encoded}"
+
+
+def decode_jwt(token):
+    try:
+        header_b64, payload_b64, signature_b64 = token.split(".")
+        signature_check = hmac.new(
+            SECRET_KEY.encode(),
+            f"{header_b64}.{payload_b64}".encode(),
+            hashlib.sha256,
+        ).digest()
+        if (
+            base64.urlsafe_b64encode(signature_check).decode().rstrip("=")
+            != signature_b64
+        ):
+            return None
+        return json.loads(
+            base64.urlsafe_b64decode(payload_b64 + "===").decode()
+        )
+    except Exception:
+        return None
+
+
+def get_current_user(token: str = Cookie(None)):
+    payload = decode_jwt(token)
+    if not payload or payload["exp"] < time.time():
+        raise HTTPException(401, "Invalid or expired token")
+    return payload
+
+
+def require_role(*roles):
+    def checker(user=Depends(get_current_user)):
+        if user["role"] not in roles:
+            raise HTTPException(403, "Access denied")
+        return user
+
+    return checker
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_form(request: Request):
+    return templates.TemplateResponse(
+        "login.html", {"request": request, "error": None}
+    )
+
+
+@app.post("/login", response_class=HTMLResponse)
+def login_user(
+    request: Request, login: str = Form(...), password: str = Form(...)
+):
+    users = read_users()
+    user = next((u for u in users if u["login"] == login), None)
+    if not user or not pwd_context.verify(password, user["hashed_password"]):
+        return templates.TemplateResponse(
+            "login.html", {"request": request, "error": "Неверные данные"}
+        )
+
+    token = jwt.encode(
+        {
+            "sub": user["login"],
+            "role": user.get("role"),
+            "name": user["name"],
+            "group": user.get("group"),
+            "exp": datetime.utcnow() + timedelta(hours=1),
+        },
+        SECRET_KEY,  # type: ignore
+        algorithm=ALGORITHM,
+    )
+
+    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    response.set_cookie(key="token", value=token, httponly=True)
+    return response
+
+
+@app.get("/register", response_class=HTMLResponse)
+def register_form(request: Request):
+    return templates.TemplateResponse(
+        "register.html", {"request": request, "error": None}
+    )
+
+
+@app.post("/register", response_class=HTMLResponse)
+def register_user(
+    request: Request,
+    name: str = Form(...),
+    group: str = Form(...),
+    login: str = Form(...),
+    password: str = Form(...),
+    role: str = Form(...),
+):
+    users = read_users()
+    if any(u["login"] == login for u in users):
+        return templates.TemplateResponse(
+            "register.html",
+            {"request": request, "error": "Логин уже существует"},
+        )
+
+    users.append(
+        {
+            "name": name,
+            "group": group,
+            "login": login,
+            "role": role,
+            "hashed_password": pwd_context.hash(password),
+        }
+    )
+    write_users(users)
+    return RedirectResponse(
+        url="/login", status_code=status.HTTP_303_SEE_OTHER
+    )
+
+
+@app.post("/logout")
+def logout():
+    response = RedirectResponse(url="/", status_code=status.HTTP_303_SEE_OTHER)
+    response.delete_cookie("token")
+    return response
 
 
 class Node:
@@ -35,7 +226,6 @@ class LinkedList:
         if temp is not None:
             if temp.data["id"] == key:
                 self.head = temp.next
-                temp = None
                 return
         while temp is not None:
             if temp.data["id"] == key:
@@ -45,7 +235,6 @@ class LinkedList:
         if temp is None:
             return
         prev.next = temp.next
-        temp = None
 
     def get_all(self):
         schedule = []
@@ -105,14 +294,28 @@ _generate_sample_data(100)
 
 
 @app.get("/", response_class=HTMLResponse)
-async def read_root(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+async def read_root(request: Request, token: str = Cookie(None)):
+    user = None
+    if token:
+        user = decode_jwt(token)
+        if user and user.get("exp", 0) < time.time():
+            user = None
+
+    return templates.TemplateResponse(
+        "index.html", {"request": request, "user": user}
+    )
 
 
 @app.get("/add_class", response_class=HTMLResponse)
-async def add_class_form(request: Request):
+async def add_class_form(request: Request, token: str = Cookie(None)):
+    user = None
+    if token:
+        user = decode_jwt(token)
+        if user and user.get("exp", 0) < time.time():
+            user = None
+
     return templates.TemplateResponse(
-        "add_class.html", {"request": request, "message": ""}
+        "add_class.html", {"request": request, "message": "", "user": user}
     )
 
 
@@ -124,6 +327,7 @@ async def add_class(
     classroom: str = Form(...),
     date: str = Form(...),
     time: str = Form(...),
+    user=Depends(require_role("teacher", "admin")),
 ):
     class_id = len(schedule_manager.get_schedule()) + 1
     new_class = {
@@ -142,17 +346,30 @@ async def add_class(
 
 
 @app.get("/view_schedule", response_class=HTMLResponse)
-async def view_schedule(request: Request):
+async def view_schedule(request: Request, token: str = Cookie(None)):
+    user = None
+    if token:
+        user = decode_jwt(token)
+        if user and user.get("exp", 0) < time.time():
+            user = None
+
     classes = schedule_manager.get_schedule()
     return templates.TemplateResponse(
-        "view_schedule.html", {"request": request, "classes": classes}
+        "view_schedule.html",
+        {"request": request, "classes": classes, "user": user},
     )
 
 
 @app.get("/search_class", response_class=HTMLResponse)
-async def search_class_form(request: Request):
+async def search_class_form(request: Request, token: str = Cookie(None)):
+    user = None
+    if token:
+        user = decode_jwt(token)
+        if user and user.get("exp", 0) < time.time():
+            user = None
+
     return templates.TemplateResponse(
-        "search_class.html", {"request": request, "message": ""}
+        "search_class.html", {"request": request, "message": "", "user": user}
     )
 
 
@@ -185,13 +402,23 @@ async def search_class(
 
 
 @app.post("/delete_class")
-async def delete_class(request: Request, class_id: int = Form(...)):
+async def delete_class(
+    request: Request,
+    class_id: int = Form(...),
+    user=Depends(require_role("admin", "teacher")),
+):
     schedule_manager.delete_class(class_id)
     return RedirectResponse("/view_schedule", status_code=303)
 
 
 @app.get("/statistics", response_class=HTMLResponse)
-async def show_statistics(request: Request):
+async def show_statistics(request: Request, token: str = Cookie(None)):
+    user = None
+    if token:
+        user = decode_jwt(token)
+        if user and user.get("exp", 0) < time.time():
+            user = None
+
     classes = schedule_manager.get_schedule()
     stats = {
         "total_classes": len(classes),
@@ -200,5 +427,5 @@ async def show_statistics(request: Request):
         "unique_classrooms": len(set(cls["classroom"] for cls in classes)),
     }
     return templates.TemplateResponse(
-        "statistics.html", {"request": request, "stats": stats}
+        "statistics.html", {"request": request, "stats": stats, "user": user}
     )

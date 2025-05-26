@@ -5,11 +5,20 @@
     <title>Статистика</title>
 </head>
 <body>
-    <h1>Статистика</h1>
-    <p>Количество классов: {{ stats.total_classes }}</p>
-    <p>Количество преподавателей: {{ stats.unique_teachers }}</p>
-    <p>Количество групп: {{ stats.unique_groups }}</p>
-    <p>Количество аудиторий: {{ stats.unique_classrooms }}</p>
-    <a href="/">Back to Home</a>
+    {% if user and user.role != "student" %}
+        <p>Вы вошли как: <strong>{{ user.name }}</strong> ({{ user.role }})</p>
+        <form method="post" action="/logout">
+            <button type="submit">Выйти</button>
+        </form>
+        <hr>
+        <h1>Статистика</h1>
+        <p>Количество классов: {{ stats.total_classes }}</p>
+        <p>Количество преподавателей: {{ stats.unique_teachers }}</p>
+        <p>Количество групп: {{ stats.unique_groups }}</p>
+        <p>Количество аудиторий: {{ stats.unique_classrooms }}</p>
+    {% else %}
+        <a href="/login">Войти</a> | <a href="/register">Регистрация</a>
+    {% endif %}
+    <a href="/">Вернуться на главную</a>
 </body>
 </html>

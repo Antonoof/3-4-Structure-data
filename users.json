@@ -1,0 +1,16 @@
+[
+  {
+    "name": "albert einstein",
+    "group": "1337",
+    "login": "albert@mail.ru",
+    "role": "admin",
+    "hashed_password": "$2b$12$OUtvtlFWDxKPvFAMi5AGRuD5M3GfnZ9/VoVkUF/H3MWxWsGP50Xz2"
+  },
+  {
+    "name": "richard feynman",
+    "group": "Aboba",
+    "login": "richard@mail.ru",
+    "role": "student",
+    "hashed_password": "$2b$12$QrceqvM0svxnZXTmmuJKkufeMtENa4MY0YfYX2/gDNf/s6tM3usXm"
+  }
+]

@@ -5,12 +5,21 @@
     <link rel="stylesheet" type="text/css" href="/static/styles.css">
 </head>
 <body>
-    <h1>Управление расписанием</h1>
-    <ul>
-        <li><a href="/add_class">Добавить занятие</a></li>
-        <li><a href="/view_schedule">Просмотреть расписание</a></li>
-        <li><a href="/search_class">Поиск занятия</a></li>
-        <li><a href="/statistics">Статистика</a></li>
-    </ul>
+    {% if user %}
+        <p>Вы вошли как: <strong>{{ user.name }}</strong> ({{ user.role }})</p>
+        <form method="post" action="/logout">
+            <button type="submit">Выйти</button>
+        </form>
+        <hr>
+        <h1>Управление расписанием</h1>
+        <ul>
+            <li><a href="/add_class">Добавить занятие</a></li>
+            <li><a href="/view_schedule">Просмотреть расписание</a></li>
+            <li><a href="/search_class">Поиск занятия</a></li>
+            <li><a href="/statistics">Статистика</a></li>
+        </ul>
+    {% else %}
+        <a href="/login">Войти</a> | <a href="/register">Регистрация</a>
+    {% endif %}
 </body>
 </html>
