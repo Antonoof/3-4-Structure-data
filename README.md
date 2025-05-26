@@ -1,1 +1,3 @@
-uvicorn main:app --reload
+DSAI
+
+Data Structures in Artificial Intelligence.
